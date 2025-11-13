@@ -1,0 +1,37 @@
+name: Build APK
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+          
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Setup buildozer
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libffi-dev libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev git
+          sudo apt install -y openjdk-11-jdk
+          sudo apt install -y autoconf automake libtool pkg-config
+          sudo apt install -y libltdl-dev
+          
+      - name: Build APK
+        run: |
+          buildozer init
+          buildozer -v android debug
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: sudoku-apk
+          path: bin/*.apk
