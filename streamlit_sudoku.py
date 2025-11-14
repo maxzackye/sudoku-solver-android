@@ -1,5 +1,8 @@
 import streamlit as st
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 from PIL import Image
 import copy
@@ -112,6 +115,10 @@ def display_sudoku_grid(grid_data, title):
 # 应用标题
 st.title("🔢 数独图像识别与求解")
 
+# 检查OpenCV是否可用
+if cv2 is None:
+    st.warning("OpenCV库不可用，图像处理功能受限。")
+
 # 应用说明
 st.markdown("""
 这是一个完整的数独求解系统，包含以下功能：
@@ -132,33 +139,40 @@ if uploaded_file is not None:
     
     # 处理图片
     with st.spinner("正在处理图片并识别数独..."):
-        # 将PIL图像转换为OpenCV格式
-        opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        
-        # 从图像中提取数独（当前为模拟实现）
-        original_sudoku = extract_sudoku_from_image(opencv_image)
-        
-        # 创建要解决的数独副本
-        solved_sudoku = copy.deepcopy(original_sudoku)
-        
-        # 解决数独
-        solver = SudokuSolver()
-        if solver.solve_sudoku(solved_sudoku):
-            st.success("数独已成功求解！")
+        try:
+            # 将PIL图像转换为OpenCV格式（如果OpenCV可用）
+            if cv2 is not None:
+                opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            else:
+                # 如果OpenCV不可用，则直接使用图像
+                opencv_image = np.array(image)
             
-            # 显示原始题目和求解结果
-            col1, col2 = st.columns(2)
+            # 从图像中提取数独（当前为模拟实现）
+            original_sudoku = extract_sudoku_from_image(opencv_image)
             
-            with col1:
+            # 创建要解决的数独副本
+            solved_sudoku = copy.deepcopy(original_sudoku)
+            
+            # 解决数独
+            solver = SudokuSolver()
+            if solver.solve_sudoku(solved_sudoku):
+                st.success("数独已成功求解！")
+                
+                # 显示原始题目和求解结果
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    display_sudoku_grid(original_sudoku, "原始题目")
+                
+                with col2:
+                    display_sudoku_grid(solved_sudoku, "求解结果")
+            else:
+                st.error("该数独无解")
+                
+                # 仍显示原始题目
                 display_sudoku_grid(original_sudoku, "原始题目")
-            
-            with col2:
-                display_sudoku_grid(solved_sudoku, "求解结果")
-        else:
-            st.error("该数独无解")
-            
-            # 仍显示原始题目
-            display_sudoku_grid(original_sudoku, "原始题目")
+        except Exception as e:
+            st.error(f"处理图片时出现错误: {str(e)}")
 else:
     # 显示示例和说明
     st.info("💡 请上传一张包含数独题目的图片开始使用")
@@ -183,7 +197,7 @@ else:
 st.markdown("---")
 st.markdown("### 技术说明")
 st.markdown("""
-- 使用OpenCV进行图像处理
+- 使用OpenCV进行图像处理（如果可用）
 - 使用回溯算法求解数独
 - 使用Streamlit构建用户界面
 - 当前图像识别为模拟实现，实际应用中需要实现完整的OCR功能
