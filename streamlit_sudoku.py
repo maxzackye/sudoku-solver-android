@@ -1,8 +1,4 @@
 import streamlit as st
-try:
-    import cv2
-except ImportError:
-    cv2 = None
 import numpy as np
 from PIL import Image
 import copy
@@ -115,10 +111,6 @@ def display_sudoku_grid(grid_data, title):
 # 应用标题
 st.title("🔢 数独图像识别与求解")
 
-# 检查OpenCV是否可用
-if cv2 is None:
-    st.warning("OpenCV库不可用，图像处理功能受限。")
-
 # 应用说明
 st.markdown("""
 这是一个完整的数独求解系统，包含以下功能：
@@ -140,15 +132,11 @@ if uploaded_file is not None:
     # 处理图片
     with st.spinner("正在处理图片并识别数独..."):
         try:
-            # 将PIL图像转换为OpenCV格式（如果OpenCV可用）
-            if cv2 is not None:
-                opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            else:
-                # 如果OpenCV不可用，则直接使用图像
-                opencv_image = np.array(image)
+            # 将PIL图像转换为数组
+            image_array = np.array(image)
             
             # 从图像中提取数独（当前为模拟实现）
-            original_sudoku = extract_sudoku_from_image(opencv_image)
+            original_sudoku = extract_sudoku_from_image(image_array)
             
             # 创建要解决的数独副本
             solved_sudoku = copy.deepcopy(original_sudoku)
@@ -197,7 +185,8 @@ else:
 st.markdown("---")
 st.markdown("### 技术说明")
 st.markdown("""
-- 使用OpenCV进行图像处理（如果可用）
+- 使用Pillow进行基础图像处理
+- 使用NumPy进行数组操作
 - 使用回溯算法求解数独
 - 使用Streamlit构建用户界面
 - 当前图像识别为模拟实现，实际应用中需要实现完整的OCR功能
