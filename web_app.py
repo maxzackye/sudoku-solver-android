@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, jsonify
 import copy
 import os
 
-app = Flask(__name__)
+# 创建Flask应用实例
+app = Flask(__name__, template_folder='templates')
 
 class SudokuSolver:
     @staticmethod
@@ -45,23 +46,41 @@ class SudokuSolver:
 
 @app.route('/')
 def index():
-    return render_template('sudoku.html')
+    try:
+        return render_template('sudoku.html')
+    except Exception as e:
+        return f"Error loading template: {str(e)}", 500
+
+@app.route('/test')
+def test():
+    return render_template('test.html')
 
 @app.route('/solve', methods=['POST'])
 def solve():
-    data = request.get_json()
-    puzzle = data['puzzle']
-    
-    # 复制数独题目以保留原始题目
-    solution = copy.deepcopy(puzzle)
-    
-    # 求解数独
-    solver = SudokuSolver()
-    if solver.solve_sudoku(solution):
-        return jsonify({'solution': solution, 'status': 'solved'})
-    else:
-        return jsonify({'solution': [], 'status': 'no_solution'})
+    try:
+        data = request.get_json()
+        if not data or 'puzzle' not in data:
+            return jsonify({'error': 'Invalid request data'}), 400
+            
+        puzzle = data['puzzle']
+        
+        # 验证输入数据
+        if not isinstance(puzzle, list) or len(puzzle) != 9:
+            return jsonify({'error': 'Invalid puzzle format'}), 400
+            
+        # 复制数独题目以保留原始题目
+        solution = copy.deepcopy(puzzle)
+        
+        # 求解数独
+        solver = SudokuSolver()
+        if solver.solve_sudoku(solution):
+            return jsonify({'solution': solution, 'status': 'solved'})
+        else:
+            return jsonify({'solution': [], 'status': 'no_solution'})
+    except Exception as e:
+        return jsonify({'error': f'Error solving puzzle: {str(e)}'}), 500
 
+# 仅在直接运行此脚本时启动应用
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='127.0.0.1', port=port, debug=True)
