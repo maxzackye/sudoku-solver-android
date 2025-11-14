@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数独求解器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .sudoku-grid {
+            display: inline-block;
+            border: 3px solid #000;
+            margin: 20px auto;
+            background-color: #fff;
+        }
+        .sudoku-row {
+            display: flex;
+        }
+        .sudoku-cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: #fff;
+            user-select: none;
+        }
+        .horizontal-border {
+            border-bottom: 3px solid #000;
+        }
+        .vertical-border {
+            border-right: 3px solid #000;
+        }
+        .fixed-cell {
+            background-color: #e0e0e0;
+        }
+        .solution-cell {
+            background-color: #d4edda;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            min-height: 24px;
+        }
+        .instructions {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>数独求解器</h1>
+        
+        <div class="instructions">
+            <p><strong>使用说明：</strong></p>
+            <ul>
+                <li>点击数独网格中的空格可以输入数字（1-9）</li>
+                <li>点击已有数字的格子可以清除该格子</li>
+                <li>点击"求解数独"按钮自动填充剩余的空格</li>
+                <li>点击"清除"清空整个网格</li>
+                <li>点击"示例"加载示例数独题目</li>
+            </ul>
+        </div>
+        
+        <div class="controls">
+            <button id="solve-btn">求解数独</button>
+            <button id="clear-btn">清除</button>
+            <button id="example-btn">示例</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="sudoku-grid" id="sudoku-grid"></div>
+    </div>
+
+    <script>
+        // 默认数独题目
+        const defaultPuzzle = [
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9]
+        ];
+        
+        // 当前数独状态
+        let currentPuzzle = JSON.parse(JSON.stringify(defaultPuzzle));
+        let fixedCells = []; // 记录固定的格子（题目给出的数字）
+        
+        // 初始化数独网格
+        function initializeGrid() {
+            const gridContainer = document.getElementById('sudoku-grid');
+            gridContainer.innerHTML = '';
+            
+            // 清空固定格子记录
+            fixedCells = [];
+            
+            // 创建网格
+            for (let i = 0; i < 9; i++) {
+                const row = document.createElement('div');
+                row.className = 'sudoku-row';
+                
+                for (let j = 0; j < 9; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'sudoku-cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    // 添加粗边界线
+                    if (i === 2 || i === 5) {
+                        cell.classList.add('horizontal-border');
+                    }
+                    if (j === 2 || j === 5) {
+                        cell.classList.add('vertical-border');
+                    }
+                    
+                    // 如果是题目给出的数字，标记为固定格子
+                    if (currentPuzzle[i][j] !== 0) {
+                        cell.textContent = currentPuzzle[i][j];
+                        cell.classList.add('fixed-cell');
+                        fixedCells.push(`${i}-${j}`);
+                    }
+                    
+                    // 添加点击事件
+                    cell.addEventListener('click', () => handleCellClick(i, j, cell));
+                    
+                    row.appendChild(cell);
+                }
+                
+                gridContainer.appendChild(row);
+            }
+        }
+        
+        // 处理格子点击事件
+        function handleCellClick(row, col, cell) {
+            // 如果是固定格子，不允许修改
+            if (fixedCells.includes(`${row}-${col}`)) {
+                return;
+            }
+            
+            // 获取当前数字
+            let currentNumber = parseInt(cell.textContent) || 0;
+            
+            // 循环数字：0->1->2->...->9->0
+            currentNumber = (currentNumber % 9) + 1;
+            
+            // 如果新数字是0，清除格子
+            if (currentNumber === 10) {
+                cell.textContent = '';
+                currentPuzzle[row][col] = 0;
+            } else {
+                cell.textContent = currentNumber;
+                currentPuzzle[row][col] = currentNumber;
+            }
+            
+            // 清除状态信息
+            document.getElementById('status').textContent = '';
+        }
+        
+        // 求解数独
+        async function solveSudoku() {
+            document.getElementById('status').textContent = '正在求解...';
+            
+            try {
+                const response = await fetch('/solve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ puzzle: currentPuzzle })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'solved') {
+                    // 更新网格显示解决方案
+                    updateGridWithSolution(data.solution);
+                    document.getElementById('status').textContent = '数独已解决！';
+                } else {
+                    document.getElementById('status').textContent = '该数独无解';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').textContent = '求解过程中出现错误';
+            }
+        }
+        
+        // 更新网格显示解决方案
+        function updateGridWithSolution(solution) {
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const cell = document.querySelector(`.sudoku-cell[data-row="${i}"][data-col="${j}"]`);
+                    
+                    // 只更新非固定格子
+                    if (!fixedCells.includes(`${i}-${j}`)) {
+                        if (solution[i][j] !== 0) {
+                            cell.textContent = solution[i][j];
+                            cell.classList.add('solution-cell');
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 清除数独网格
+        function clearGrid() {
+            currentPuzzle = Array(9).fill().map(() => Array(9).fill(0));
+            fixedCells = [];
+            initializeGrid();
+            document.getElementById('status').textContent = '';
+        }
+        
+        // 加载示例数独
+        function loadExample() {
+            currentPuzzle = JSON.parse(JSON.stringify(defaultPuzzle));
+            initializeGrid();
+            document.getElementById('status').textContent = '已加载示例数独';
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeGrid();
+            
+            // 绑定按钮事件
+            document.getElementById('solve-btn').addEventListener('click', solveSudoku);
+            document.getElementById('clear-btn').addEventListener('click', clearGrid);
+            document.getElementById('example-btn').addEventListener('click', loadExample);
+        });
+    </script>
+</body>
+</html>
